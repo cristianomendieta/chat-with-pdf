@@ -1,0 +1,41 @@
+# Estágio de build
+FROM python:3.11-slim as builder
+
+WORKDIR /tmp
+
+# Copia os arquivos de configuração necessários
+COPY pyproject.toml .
+COPY uv.lock .
+
+RUN pip install uv==0.7.2
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev
+
+# Estágio final
+FROM python:3.11-slim
+
+RUN mkdir /code
+
+# Copia o arquivo de dependências e instala
+COPY --from=builder /tmp/.venv /code/.venv
+
+ENV PATH="/code/.venv/bin:$PATH"
+ENV PYTHONPATH="/code/app"
+
+ENTRYPOINT []
+
+# Copia o código da API para o container
+COPY ./app /code/app
+
+# # Define o diretório de trabalho para a aplicação
+WORKDIR /code
+
+# Expõe a porta que a aplicação irá utilizar
+EXPOSE 80
+
+# Inicia a aplicação via Uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
