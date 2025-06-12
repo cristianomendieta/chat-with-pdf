@@ -25,8 +25,7 @@ services:
       - STREAMLIT_SERVER_HEADLESS=true
       - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     networks:
       - chat-pdf-network
 
