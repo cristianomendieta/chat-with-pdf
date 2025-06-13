@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.framework.apis import assistant_router
+from app.framework.apis import pdf_chat_router
 
 router = APIRouter()
-router.include_router(assistant_router.api)
+router.include_router(pdf_chat_router.api)

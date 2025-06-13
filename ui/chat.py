@@ -1,23 +1,43 @@
-import streamlit as st
-import requests
 import os
 
-# Configuration
-API_BASE_URL = os.getenv("API_BASE_URL", "http://backend:80")
+import requests
+import streamlit as st
 
-def call_chat_api(message: str):
-    """Call the backend chat API"""
+# Configuration
+API_BASE_URL = os.getenv("API_BASE_URL", "http://backend:8000")
+
+
+def upload_documents(files):
+    """Upload PDF documents to the backend"""
     try:
+        files_data = []
+        for file in files:
+            files_data.append(
+                ("files", (file.name, file.getvalue(), "application/pdf"))
+            )
+
         response = requests.post(
-            f"{API_BASE_URL}/api/v1/chat",
-            json={"message": message},
-            timeout=30
+            f"{API_BASE_URL}/api/v1/documents", files=files_data, timeout=60
         )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"Error calling API: {str(e)}")
+        st.error(f"Error uploading documents: {str(e)}")
         return None
+
+
+def ask_question(question: str):
+    """Ask a question to the backend"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/question", json={"question": question}, timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error asking question: {str(e)}")
+        return None
+
 
 def check_backend_status():
     """Check if backend is available"""
@@ -27,26 +47,25 @@ def check_backend_status():
     except Exception:
         return False
 
+
 def main():
-    st.set_page_config(
-        page_title="Chat with PDF",
-        page_icon="📄",
-        layout="wide"
-    )
-    
+    st.set_page_config(page_title="Chat with PDF", page_icon="📄", layout="wide")
+
     st.title("📄 Chat with PDF using AI")
-    
+
     # Check backend status
     if check_backend_status():
         st.success("✅ Backend is connected!")
     else:
-        st.error("❌ Backend is not available. Please check if the backend service is running.")
+        st.error(
+            "❌ Backend is not available. Please check if the backend service is running."
+        )
         st.stop()
-    
+
     # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
-    
+
     # Sidebar for file upload
     with st.sidebar:
         st.header("📁 Upload Documents")
@@ -54,68 +73,79 @@ def main():
             "Choose PDF files",
             type="pdf",
             accept_multiple_files=True,
-            help="Upload one or more PDF files to chat with"
+            help="Upload one or more PDF files to chat with",
         )
-        
+
         if uploaded_files:
             st.write(f"📄 {len(uploaded_files)} file(s) uploaded:")
             for file in uploaded_files:
                 st.write(f"- {file.name}")
-        
+
+            if st.button("📤 Upload Documents"):
+                with st.spinner("Uploading documents..."):
+                    result = upload_documents(uploaded_files)
+                    if result:
+                        st.success(f"✅ {result['message']}")
+                        st.info(f"Documents indexed: {result['documents_indexed']}")
+
         if st.button("🔄 Clear Chat History"):
             st.session_state.messages = []
             st.rerun()
-    
+
     # Main chat interface
     st.header("💬 Chat Interface")
-    
+
     # Display chat messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-            if "sources" in message and message["sources"]:
+            if "references" in message and message["references"]:
                 with st.expander("📚 Sources"):
-                    for source in message["sources"]:
-                        st.write(f"- {source}")
-    
+                    for reference in message["references"]:
+                        st.write(f"- {reference}")
+
     # Chat input
     if prompt := st.chat_input("Ask a question about your PDFs..."):
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
-        
+
         # Display user message
         with st.chat_message("user"):
             st.markdown(prompt)
-        
+
         # Get AI response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response_data = call_chat_api(prompt)
-                
+                response_data = ask_question(prompt)
+
                 if response_data:
-                    ai_response = response_data.get("response", "Sorry, I couldn't process your request.")
-                    sources = response_data.get("sources", [])
-                    
+                    ai_response = response_data.get(
+                        "answer", "Sorry, I couldn't process your request."
+                    )
+                    references = response_data.get("references", [])
+
                     st.markdown(ai_response)
-                    
-                    if sources:
+
+                    if references:
                         with st.expander("📚 Sources"):
-                            for source in sources:
-                                st.write(f"- {source}")
-                    
+                            for reference in references:
+                                st.write(f"- {reference}")
+
                     # Add assistant response to chat history
-                    st.session_state.messages.append({
-                        "role": "assistant", 
-                        "content": ai_response,
-                        "sources": sources
-                    })
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": ai_response,
+                            "references": references,
+                        }
+                    )
                 else:
                     error_msg = "Sorry, there was an error processing your request. Please try again."
                     st.error(error_msg)
-                    st.session_state.messages.append({
-                        "role": "assistant", 
-                        "content": error_msg
-                    })
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": error_msg}
+                    )
+
 
 if __name__ == "__main__":
     main()

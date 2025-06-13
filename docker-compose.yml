@@ -7,9 +7,17 @@ services:
       dockerfile: app/dockerfile
     container_name: chat-pdf-backend
     ports:
-      - "8000:80"
+      - "8000:8000"
+      - "5678:5678"
     networks:
       - chat-pdf-network
+    working_dir: /code
+    command:
+      [
+        "sh",
+        "-c",
+        "pip install debugpy -t /tmp && python /tmp/debugpy --wait-for-client --listen 0.0.0.0:5678 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+      ]
 
   frontend:
     build:
@@ -19,7 +27,7 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - API_BASE_URL=http://backend:80
+      - API_BASE_URL=http://backend:8000
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
       - STREAMLIT_SERVER_HEADLESS=true
