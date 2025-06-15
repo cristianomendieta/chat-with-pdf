@@ -7,6 +7,8 @@ from app.domain.models.document import DocumentProcessResult
 
 logger = logging.getLogger(__name__)
 
+MAX_FILE_SIZE_MB = 50
+
 
 class DocumentController:
     def __init__(self, document_processing_service):
@@ -64,6 +66,7 @@ class DocumentController:
             raise ValueError("No files provided for upload")
 
         pdf_files = []
+        max_file_size_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
 
         for file in files:
             # Check file extension and content type
@@ -75,10 +78,9 @@ class DocumentController:
                     f"File '{file.filename}' is not a PDF. Only PDF files are allowed."
                 )
 
-            # Basic file size validation (optional - adjust as needed)
-            if file.size and file.size > 50 * 1024 * 1024:  # 50MB limit
+            if file.size and file.size > max_file_size_bytes:
                 raise ValueError(
-                    f"File '{file.filename}' is too large. Maximum size is 50MB."
+                    f"File '{file.filename}' is too large. Maximum size is {MAX_FILE_SIZE_MB}MB."
                 )
 
             pdf_files.append(file)

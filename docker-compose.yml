@@ -12,6 +12,8 @@ services:
     networks:
       - chat-pdf-network
     working_dir: /code
+    env_file:
+      - .env
     volumes:
       - ./app:/code/app
       - ./pyproject.toml:/code/pyproject.toml
