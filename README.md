@@ -93,7 +93,10 @@ GROQ_API_KEY=your_groq_api_key_here
 docker-compose up --build
 ```
 
-### 4. Access the application
+### 4. Configure debugging
+To run the API properly and facilitate the development environment, configure debugging as demonstrated in the section below
+
+### 5. Access the application
 - **Web Interface (Streamlit)**: http://localhost:8501
 - **API Backend**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
@@ -143,12 +146,6 @@ curl -X POST "http://localhost:8000/api/v1/question" \
     "search_strategy": "hybrid",
     "max_documents": 5,
   }'
-```
-
-### Running tests
-```bash
-# Run test notebooks
-jupyter notebook notebooks/
 ```
 
 ### Debugging
@@ -236,7 +233,6 @@ Docker Compose is configured for remote debugging on port 5678.
     "question": str,                    # User's question
     "search_strategy": str,             # "dense", "sparse", or "hybrid" (default)
     "max_documents": int,               # Maximum number of documents to retrieve (default: 5)
-    "file_filters": List[str]           # Optional list of filenames to filter results
 }
 ```
 
