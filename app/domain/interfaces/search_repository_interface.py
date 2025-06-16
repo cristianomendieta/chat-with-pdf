@@ -1,3 +1,5 @@
+"""Abstract interfaces for search repository operations."""
+
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -6,7 +8,7 @@ from app.domain.models.search import SearchQuery
 
 
 class SearchRepository(ABC):
-    """Abstract interface for search operations."""
+    """Abstract interface for document search and storage operations."""
 
     @abstractmethod
     async def store_documents(self, documents: List[DocumentChunk]) -> None:
@@ -21,10 +23,10 @@ class SearchRepository(ABC):
     @abstractmethod
     async def search(self, query: SearchQuery) -> List[SearchResult]:
         """
-        Search for documents matching the query.
+        Search for documents matching the query criteria.
 
         Args:
-            query: Search query with parameters
+            query: Search query with parameters and strategy
 
         Returns:
             List of search results ordered by relevance
@@ -33,18 +35,18 @@ class SearchRepository(ABC):
 
 
 class HybridSearchService(ABC):
-    """Abstract interface for hybrid search capabilities."""
+    """Abstract interface for hybrid search capabilities combining multiple strategies."""
 
     @abstractmethod
     async def hybrid_search(self, query: SearchQuery) -> List[SearchResult]:
         """
-        Perform hybrid search combining multiple strategies.
+        Perform hybrid search combining dense and sparse vector strategies.
 
         Args:
-            query: Search query
+            query: Search query parameters
 
         Returns:
-            Combined and ranked search results
+            Combined and reranked search results
         """
         pass
 

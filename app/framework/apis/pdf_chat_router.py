@@ -1,4 +1,6 @@
-from typing import List, Optional
+"""PDF chat API router with document upload and question answering endpoints."""
+
+from typing import List
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from kink import di
@@ -11,17 +13,18 @@ api = APIRouter()
 
 
 class DocumentUploadResponse(BaseModel):
+    """Response model for document upload operations."""
+
     message: str
     documents_indexed: int
     total_chunks: int
 
 
 class QuestionResponse(BaseModel):
+    """Response model for question answering operations."""
+
     answer: str
     references: List[str] = []
-    search_strategy: Optional[str] = None
-    documents_found: Optional[int] = 0
-    context_used: Optional[int] = 0
 
 
 @api.post("/documents", response_model=DocumentUploadResponse)
@@ -65,13 +68,7 @@ async def ask_question(
     """
     result = await controller.ask_question(request)
 
-    return QuestionResponse(
-        answer=result.answer,
-        references=result.references,
-        search_strategy=result.search_strategy,
-        documents_found=result.documents_found,
-        context_used=result.context_used,
-    )
+    return QuestionResponse(answer=result.answer, references=result.references)
 
 
 @api.get("/question/status")

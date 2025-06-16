@@ -1,4 +1,5 @@
 def main():
+    """Main application entry point."""
     print("Hello from chat-with-pdf!")
 
 

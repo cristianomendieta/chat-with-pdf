@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 from app.domain.interfaces.vector_store_interface import VectorStoreInterface
 from app.domain.models.question import QuestionRequest, QuestionResult
-from app.framework.llm.chains.generate_answer_chain import RAGChain
+from app.infra.llm.chains import RAGChain
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +51,11 @@ class QuestionAnsweringService:
 
             if not relevant_docs:
                 return QuestionResult(
-                    answer="Desculpe, não encontrei informações relevantes para responder sua pergunta nos documentos indexados.",
+                    answer="Sorry, I couldn't find relevant information to answer your question in the indexed documents.",
                     references=[],
-                    search_strategy=search_strategy,
-                    documents_found=0,
                 )
 
-            context_documents = [doc.document.content + "\n" for doc in relevant_docs]
+            context_documents = [doc.document.content for doc in relevant_docs]
             answer = self.rag_chain.generate_answer(
                 question=request.question, docs_content=context_documents
             )
@@ -70,6 +68,6 @@ class QuestionAnsweringService:
         except Exception as e:
             logger.error(f"Error answering question: {str(e)}")
             return QuestionResult(
-                answer=f"Ocorreu um erro ao processar sua pergunta: {str(e)}",
+                answer=f"An error occurred while processing your question: {str(e)}",
                 references=[],
             )

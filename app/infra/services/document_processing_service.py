@@ -1,3 +1,5 @@
+"""Document processing service for handling PDF document operations."""
+
 import asyncio
 from typing import List
 
@@ -11,7 +13,15 @@ from app.domain.models.document import DocumentProcessResult
 
 
 class DocumentProcessingService:
+    """Service responsible for processing and indexing PDF documents."""
+
     def __init__(self, vector_store: VectorStoreInterface):
+        """
+        Initialize DocumentProcessingService.
+
+        Args:
+            vector_store: Vector store implementation for document storage
+        """
         self.vector_store = vector_store
 
     async def process_documents(self, files: List[UploadFile]) -> DocumentProcessResult:
@@ -25,12 +35,13 @@ class DocumentProcessingService:
             DocumentProcessResult with number of successfully processed documents
         """
 
-        # Create a task for each file
+        # Create concurrent tasks for each file
         tasks = [asyncio.create_task(self._process_file(file)) for file in files]
-        # Run all tasks concurrently and wait for completion
+
+        # Execute all tasks concurrently and collect results
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Count successful processes and total chunks
+        # Calculate processing statistics
         success_count = 0
         total_chunks = 0
 
@@ -44,30 +55,33 @@ class DocumentProcessingService:
             documents_indexed=success_count, total_chunks=total_chunks
         )
 
-    async def _process_file(self, file: UploadFile) -> None:
+    async def _process_file(self, file: UploadFile) -> List:
         """
         Process a single PDF file and index its content.
 
         Args:
             file: The PDF file to process
+
+        Returns:
+            List of document chunks created from the file
         """
         file_content = await file.read()
 
+        # Extract text content from PDF using pymupdf
         doc = pymupdf.open(stream=file_content, filetype="pdf")
         md_text = pymupdf4llm.to_markdown(doc=doc)
+        doc.close()  # Free memory immediately
 
-        # Close the document to free memory
-        doc.close()
-
+        # Split text into manageable chunks
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
-            chunk_overlap=100,
+            chunk_overlap=200,
             length_function=len,
             is_separator_regex=False,
         )
         texts = text_splitter.create_documents([md_text])
 
-        # Store documents in vector database
+        # Store document chunks in vector database
         await self.vector_store.store_documents(texts, file.filename)
 
         return texts

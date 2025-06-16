@@ -1,17 +1,29 @@
+"""Document controller for handling PDF upload and processing operations."""
+
 import logging
 from typing import List
 
 from fastapi import HTTPException, UploadFile
 
 from app.domain.models.document import DocumentProcessResult
+from app.infra.services.document_processing_service import DocumentProcessingService
 
 logger = logging.getLogger(__name__)
 
+# Maximum file size allowed for PDF uploads (in MB)
 MAX_FILE_SIZE_MB = 50
 
 
 class DocumentController:
-    def __init__(self, document_processing_service):
+    """Controller responsible for handling document upload and processing operations."""
+
+    def __init__(self, document_processing_service: DocumentProcessingService):
+        """
+        Initialize DocumentController.
+
+        Args:
+            document_processing_service: Service for processing documents
+        """
         self.document_processing_service = document_processing_service
 
     async def upload_documents(self, files: List[UploadFile]) -> DocumentProcessResult:

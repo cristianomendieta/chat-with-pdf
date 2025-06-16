@@ -1,3 +1,5 @@
+"""Pinecone client implementation for vector storage operations."""
+
 from typing import Any, Dict, List, Optional
 
 from app.domain.entities.search_entities import DocumentChunk
@@ -10,15 +12,14 @@ env = get_env()
 
 
 class PineconeClient(VectorStoreInterface):
-    def __init__(
-        self,
-        environment: str = "us-east-1",
-    ):
+    """Pinecone implementation of vector store interface with hybrid search capabilities."""
+
+    def __init__(self, environment: str = "us-east-1"):
         """
         Initialize Pinecone client.
 
         Args:
-            environment: Pinecone environment/region (defaults to 'us-east-1' if not provided)
+            environment: Pinecone environment/region
         """
         self.repository = PineconeSearchRepository(
             api_key=env.PINECONE_API_KEY,
@@ -26,7 +27,6 @@ class PineconeClient(VectorStoreInterface):
             sparse_index_name=env.PINECONE_SPARSE_INDEX_NAME,
             environment=environment,
         )
-
         self.current_strategy = SearchStrategyType.HYBRID
 
     async def store_documents(
@@ -36,10 +36,10 @@ class PineconeClient(VectorStoreInterface):
         Store documents in the vector store.
 
         Args:
-            documents: List of document dictionaries with 'content' and metadata
+            documents: List of document dictionaries with content and metadata
             file_name: Name of the source file
         """
-        # Convert dict format to DocumentChunk entities
+        # Convert document format to domain entities
         doc_chunks = []
         for i, doc in enumerate(documents):
             chunk = DocumentChunk(
@@ -47,11 +47,10 @@ class PineconeClient(VectorStoreInterface):
                 content=doc.page_content,
                 metadata=doc.metadata or {},
                 file_name=file_name,
-                chunk_index=i,
             )
             doc_chunks.append(chunk)
 
-        # Store using the repository
+        # Store using the repository layer
         await self.repository.store_documents(doc_chunks)
 
     async def search_similar(
@@ -73,7 +72,7 @@ class PineconeClient(VectorStoreInterface):
         Returns:
             List of search results in dictionary format
         """
-        # Determine strategy to use
+        # Determine search strategy to use
         if strategy:
             try:
                 search_strategy = SearchStrategyType(strategy)
@@ -82,14 +81,13 @@ class PineconeClient(VectorStoreInterface):
         else:
             search_strategy = self.current_strategy
 
-        # Create search query
+        # Create search query object
         search_query = SearchQuery(
             text=query, max_results=k, strategy=search_strategy, filters=filters
         )
 
-        # Perform search
+        # Execute search through repository
         results = await self.repository.search(search_query)
-
         return results
 
     def set_search_strategy(self, strategy_name: str, **kwargs) -> None:
@@ -98,7 +96,7 @@ class PineconeClient(VectorStoreInterface):
 
         Args:
             strategy_name: Name of the strategy ('dense', 'sparse', 'hybrid')
-            **kwargs: Additional arguments (ignored for now)
+            **kwargs: Additional arguments (currently unused)
         """
         try:
             self.current_strategy = SearchStrategyType(strategy_name)
@@ -116,7 +114,3 @@ class PineconeClient(VectorStoreInterface):
             List of strategy names
         """
         return [strategy.value for strategy in SearchStrategyType]
-
-    async def get_index_stats(self) -> Dict[str, Any]:
-        """Get statistics about the search indexes."""
-        return await self.repository.get_index_stats()

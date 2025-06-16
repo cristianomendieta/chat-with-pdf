@@ -12,17 +12,20 @@ def upload_documents(files):
     try:
         files_data = []
         for file in files:
+            # Reset file pointer to beginning
+            file.seek(0)
             files_data.append(
                 ("files", (file.name, file.getvalue(), "application/pdf"))
             )
 
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/documents", files=files_data, timeout=60
-        )
+        response = requests.post(f"{API_BASE_URL}/api/v1/documents", files=files_data)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"Error uploading documents: {str(e)}")
+        if hasattr(e, "response") and e.response is not None:
+            st.error(f"Response status: {e.response.status_code}")
+            st.error(f"Response content: {e.response.text}")
         return None
 
 
@@ -30,7 +33,7 @@ def ask_question(question: str):
     """Ask a question to the backend"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/api/v1/question", json={"question": question}, timeout=30
+            f"{API_BASE_URL}/api/v1/question", json={"question": question}
         )
         response.raise_for_status()
         return response.json()
@@ -79,14 +82,18 @@ def main():
         if uploaded_files:
             st.write(f"📄 {len(uploaded_files)} file(s) uploaded:")
             for file in uploaded_files:
-                st.write(f"- {file.name}")
+                st.write(f"- {file.name} ({file.size} bytes)")
 
             if st.button("📤 Upload Documents"):
                 with st.spinner("Uploading documents..."):
+                    st.info("Sending files to backend...")
                     result = upload_documents(uploaded_files)
                     if result:
                         st.success(f"✅ {result['message']}")
-                        st.info(f"Documents indexed: {result['documents_indexed']}")
+                    else:
+                        st.error(
+                            "❌ Failed to upload documents. Check the logs above for details."
+                        )
 
         if st.button("🔄 Clear Chat History"):
             st.session_state.messages = []

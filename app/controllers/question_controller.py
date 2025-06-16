@@ -1,3 +1,5 @@
+"""Question controller for handling question answering operations."""
+
 import logging
 
 from fastapi import HTTPException
@@ -9,9 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class QuestionController:
-    """
-    Controller responsible for handling question answering operations.
-    """
+    """Controller responsible for handling question answering operations."""
 
     def __init__(self, question_answering_service: QuestionAnsweringService):
         """
@@ -46,9 +46,7 @@ class QuestionController:
                 max_context_documents=validated_request.max_documents or 5,
             )
 
-            logger.info(
-                f"Successfully answered question using {result.search_strategy} strategy: '{request.question[:50]}...'"
-            )
+            logger.info("Successfully answered question")
 
             return result
 

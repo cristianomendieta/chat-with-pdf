@@ -1,3 +1,5 @@
+"""Pinecone search repository implementation with hybrid search capabilities."""
+
 import hashlib
 from collections import Counter
 from typing import Any, Dict, List
@@ -19,11 +21,12 @@ from app.domain.models.search import (
 )
 from app.infra.encoders import BertTextEncoder, OpenAITextEncoder
 
+# Minimum relevance score threshold for search results
 SCORE_THRESHOLD = 0.7
 
 
 class PineconeSearchRepository(SearchRepository, HybridSearchService):
-    """Pinecone implementation of search repository with hybrid search capabilities."""
+    """Pinecone implementation with dense, sparse, and hybrid search capabilities."""
 
     def __init__(
         self,
@@ -36,35 +39,35 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
         Initialize Pinecone search repository.
 
         Args:
-            api_key: Pinecone API key
+            api_key: Pinecone API key for authentication
             dense_index_name: Name of the dense vector index
             sparse_index_name: Name of the sparse vector index
-            environment: Pinecone environment
+            environment: Pinecone environment/region
         """
         self.pc = Pinecone(api_key=api_key)
         self.dense_index_name = dense_index_name
         self.sparse_index_name = sparse_index_name
         self.environment = environment
 
-        # Ensure indexes exist
+        # Initialize indexes (create if they don't exist)
         self._ensure_indexes_exist()
 
-        # Initialize indexes
+        # Connect to existing indexes
         self.dense_index = self.pc.Index(dense_index_name)
         self.sparse_index = self.pc.Index(sparse_index_name)
 
-        # Initialize encoders
+        # Initialize text encoders for document processing
         self.dense_encoder = OpenAITextEncoder()
         self.sparse_encoder = BertTextEncoder()
 
-        # For query encoding
+        # Initialize components for query processing
         self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         self.tokenizer = BertTokenizerFast.from_pretrained(
             "bert-base-multilingual-uncased"
         )
 
     def _ensure_indexes_exist(self) -> None:
-        """Ensure both indexes exist."""
+        """Create Pinecone indexes if they don't already exist."""
         if not self.pc.has_index(self.dense_index_name):
             self.pc.create_index(
                 name=self.dense_index_name,
@@ -81,28 +84,33 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
             )
 
     async def store_documents(self, documents: List[DocumentChunk]) -> None:
-        """Store document chunks in both dense and sparse indexes."""
+        """
+        Store document chunks in both dense and sparse vector indexes.
+
+        Args:
+            documents: List of document chunks to store
+        """
         if not documents:
             return
 
-        # Extract text content
+        # Extract text content for encoding
         texts = [doc.content for doc in documents]
 
-        # Encode using both strategies
+        # Generate vector representations using both encoding strategies
         dense_encoded = await self.dense_encoder.encode_texts(texts)
         sparse_encoded = await self.sparse_encoder.encode_texts(texts)
 
-        # Prepare vectors for upload
+        # Prepare vectors for upload to each index
         dense_vectors = []
         sparse_vectors = []
 
         for doc, dense_vec, sparse_vec in zip(documents, dense_encoded, sparse_encoded):
             doc_id = self._generate_document_id(doc)
 
+            # Prepare metadata for both indexes
             metadata = {
                 "chunk_text": doc.content,
                 "file_name": doc.file_name or "",
-                "chunk_index": doc.chunk_index,
                 **doc.metadata,
             }
 
@@ -118,16 +126,24 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
                 }
             )
 
-        # Upload in batches
+        # Upload vectors to both indexes in batches
         await self._upload_vectors_batch(dense_vectors, self.dense_index)
         await self._upload_vectors_batch(sparse_vectors, self.sparse_index)
 
     def _generate_document_id(self, doc: DocumentChunk) -> str:
-        """Generate a unique ID for a document chunk."""
+        """
+        Generate a unique identifier for a document chunk.
+
+        Args:
+            doc: Document chunk to generate ID for
+
+        Returns:
+            Unique document ID
+        """
         if doc.id:
             return doc.id
 
-        # Generate ID from content hash
+        # Generate ID from content hash if not provided
         content_hash = hashlib.md5(doc.content.encode()).hexdigest()
         return content_hash
 
@@ -137,13 +153,28 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
         index,
         batch_size: int = 100,
     ) -> None:
-        """Upload vectors in batches."""
+        """
+        Upload vectors to Pinecone index in batches to handle rate limits.
+
+        Args:
+            vectors: List of vectors to upload
+            index: Pinecone index to upload to
+            batch_size: Number of vectors per batch
+        """
         for i in range(0, len(vectors), batch_size):
             batch = vectors[i : i + batch_size]
             index.upsert(vectors=batch)
 
     async def search(self, query: SearchQuery) -> List[SearchResult]:
-        """Search using the specified strategy."""
+        """
+        Search using the specified strategy.
+
+        Args:
+            query: Search query with strategy and parameters
+
+        Returns:
+            List of search results ordered by relevance
+        """
         if query.strategy == SearchStrategyType.DENSE:
             return await self._dense_search(query)
         elif query.strategy == SearchStrategyType.SPARSE:
@@ -174,7 +205,6 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
                 content=match["metadata"].get("chunk_text", ""),
                 metadata=match["metadata"],
                 file_name=match["metadata"].get("file_name"),
-                chunk_index=match["metadata"].get("chunk_index"),
             )
 
             score = SearchScore(dense_score=match["score"])
@@ -210,7 +240,6 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
                 content=match["metadata"].get("chunk_text", ""),
                 metadata=match["metadata"],
                 file_name=match["metadata"].get("file_name"),
-                chunk_index=match["metadata"].get("chunk_index"),
             )
 
             score = SearchScore(sparse_score=match["score"])
@@ -278,11 +307,6 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
 
         # Merge results (same logic as notebook)
         merged_results = self._merge_hybrid_results(dense_results, sparse_results)
-
-        # # Sort by combined score
-        # sorted_results = sorted(
-        #     merged_results, key=lambda x: x.score.combined_score, reverse=True
-        # )
 
         # Apply reranking if requested
         if apply_reranking:
@@ -365,7 +389,6 @@ class PineconeSearchRepository(SearchRepository, HybridSearchService):
                     "_id": result.document.id,
                     "chunk_text": result.document.content,
                     "file_name": result.document.file_name or "",
-                    "chunk_index": result.document.chunk_index,
                     **result.document.metadata,
                 }
             )
