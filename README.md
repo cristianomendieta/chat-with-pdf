@@ -11,7 +11,7 @@ A Retrieval Augmented Generation (RAG) application that enables users to ask que
 - **Clean Architecture**: Implementation based on Domain-Driven Design (DDD) principles
 - **Containerization**: Fully dockerized application
 - **Asynchronous Processing**: Concurrent document processing capabilities
-- **Multi-LLM Support**: Compatible with OpenAI, Google Gemini, and Groq models
+- **Multi-LLM Support**: Compatible with OpenAI and Groq models
 
 ## 🏗️ Architecture
 
@@ -43,6 +43,7 @@ app/
 - **Python 3.11+** - Programming language
 - **LangChain** - Framework for LLM applications
 - **Pinecone** - Vector database
+- **OCRmyPDF** and **Tesseract** - OCR tools
 - **PyMuPDF** - PDF document processing
 - **Kink** - Dependency injection container
 - **Uvicorn** - ASGI server
@@ -52,8 +53,7 @@ app/
 
 ### LLM Integration
 - **OpenAI** - GPT models for response generation
-- **Google Gemini** - Alternative AI models
-- **Groq** - Fast LLM inference
+- **Groq** - Fast LLM inference(used as model fallback)
 
 ### Infrastructure
 - **Docker & Docker Compose** - Containerization
@@ -64,7 +64,7 @@ app/
 - Docker and Docker Compose
 - API Keys:
   - Pinecone API Key
-  - At least one LLM provider API Key (OpenAI, Groq, or Google Gemini)
+  - At least one LLM provider API Key (OpenAI or Groq)
 
 ## 🚀 Getting Started
 
@@ -80,15 +80,11 @@ Create a `.env` file in the project root:
 ```env
 # Pinecone Configuration
 PINECONE_API_KEY=your_pinecone_api_key_here
-PINECONE_DENSE_INDEX_NAME=dense-chat-with-pdf
-PINECONE_SPARSE_INDEX_NAME=sparse-chat-with-pdf
 
 # LLM Configuration (choose one or more)
 OPENAI_API_KEY=your_openai_api_key_here
 # or
 GROQ_API_KEY=your_groq_api_key_here
-# or
-GOOGLE_API_KEY=your_google_api_key_here
 ```
 
 ### 3. Run with Docker Compose
@@ -100,6 +96,23 @@ docker-compose up --build
 - **Web Interface (Streamlit)**: http://localhost:8501
 - **API Backend**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
+
+## 🐛 Debugging
+
+For local development and debugging:
+
+1. **Start the application**:
+   ```bash
+   docker-compose up --build
+   ```
+
+2. **Enable debugging in your IDE**:
+   - Docker Compose is configured for remote debugging on port 5678
+   - In VSCode, use the debugger configuration to attach to the running container
+   - Set breakpoints in your code and debug as usual
+
+3. **Debug configuration**:
+   The application supports remote debugging through the containerized environment, allowing you to debug the running application without leaving the Docker context.
 
 ## 📚 Usage
 
@@ -126,27 +139,7 @@ curl -X POST "http://localhost:8000/api/v1/question" \
   -H "Content-Type: application/json" \
   -d '{
     "question": "What is the main content of the document?",
-    "search_strategy": "hybrid",
-    "max_documents": 5
   }'
-```
-
-#### Check Service Status
-```bash
-curl -X GET "http://localhost:8000/api/v1/question/status"
-```
-
-## 🔧 Advanced Configuration
-
-### Search Strategies
-- **`hybrid`** (default): Combines semantic and lexical search
-- **`dense`**: Semantic search only
-- **`sparse`**: Lexical search only
-
-### Search Parameters
-- **`max_documents`**: Maximum number of documents for context (default: 5)
-- **`search_strategy`**: Search strategy to use
-
 ```
 
 ### Running tests
@@ -175,8 +168,6 @@ Docker Compose is configured for remote debugging on port 5678.
 ```python
 {
     "question": "Your question here",
-    "search_strategy": "hybrid",  # optional
-    "max_documents": 5           # optional
 }
 ```
 
@@ -187,18 +178,3 @@ Docker Compose is configured for remote debugging on port 5678.
     "references": ["source1.pdf", "source2.pdf"]
 }
 ```
-
-## � Components
-
-### Controllers
-- **DocumentController**: Handles PDF upload and processing operations
-- **QuestionController**: Manages question answering operations
-
-### Services
-- **DocumentProcessingService**: Processes and indexes PDF documents
-- **QuestionAnsweringService**: Handles question answering with hybrid search
-
-### Domain Models
-- **DocumentProcessResult**: Document processing statistics
-- **QuestionRequest**: Question request with search parameters
-- **QuestionResult**: Answer with source references

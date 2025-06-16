@@ -69,19 +69,3 @@ async def ask_question(
     result = await controller.ask_question(request)
 
     return QuestionResponse(answer=result.answer, references=result.references)
-
-
-@api.get("/question/status")
-async def get_question_service_status(
-    controller: QuestionController = Depends(lambda: di[QuestionController]),
-):
-    """
-    Get the current status of the question answering service.
-
-    Args:
-        controller: Injected question controller
-
-    Returns:
-        Service status information including available search strategies
-    """
-    return await controller.get_question_service_status()

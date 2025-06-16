@@ -103,26 +103,3 @@ class QuestionController:
             search_strategy=request.search_strategy or "hybrid",
             max_documents=request.max_documents or 5,
         )
-
-    async def get_question_service_status(self) -> dict:
-        """
-        Get the current status of the question answering service.
-
-        Returns:
-            Dictionary with service status information
-        """
-        try:
-            stats = await self.question_answering_service.get_search_statistics()
-            return {
-                "status": "ready",
-                "message": "Question answering service is operational with hybrid search",
-                "available_strategies": stats.get("available_strategies", []),
-                "index_statistics": stats.get("index_statistics", {}),
-            }
-        except Exception as e:
-            logger.error(f"Failed to get question service status: {str(e)}")
-            return {
-                "status": "error",
-                "message": "Question answering service is experiencing issues",
-                "error": str(e),
-            }
