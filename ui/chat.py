@@ -86,7 +86,6 @@ def main():
 
             if st.button("📤 Upload Documents"):
                 with st.spinner("Uploading documents..."):
-                    st.info("Sending files to backend...")
                     result = upload_documents(uploaded_files)
                     if result:
                         st.success(f"✅ {result['message']}")
